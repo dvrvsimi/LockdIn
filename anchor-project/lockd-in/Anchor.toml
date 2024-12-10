@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-lockd_in = "7j2F8utUft72PmSWakq9aX17UP96w6DHyQQgPhBp81cp"
+lockd_in = "DdJpnMdvznViXZs17HZyBw9sU9MsVCwmrfMZCAeEWwQL"
 
 [registry]
 url = "https://api.apr.dev"

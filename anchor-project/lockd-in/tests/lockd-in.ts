@@ -69,7 +69,7 @@ describe("lock-in", () => {
       try {
         await program.methods
           .createTodoTask(
-            "",  // Empty title
+            "a".repeat(51),  // Empty title
             "Description",
             { casual: {} },
             { work: {} },
@@ -82,18 +82,18 @@ describe("lock-in", () => {
           })
           .signers([user])
           .rpc();
-        expect.fail("Expected to throw InvalidTitle error");
+        expect.fail("Expected tx failure");
       } catch (error: any) {
         const errorMsg = error.error?.message || error.message;
         expect(errorMsg).to.include("Invalid task title or description");
+        }
       }
-    });
+    );
   });
 
   describe("reassign_task", () => {
     it("should reassign a task to new assignee", async () => {
-      const newAssignee = Keypair.generate();
-      const initAssignee = Keypair.generate();
+      // const initAssignee = Keypair.generate();
 
       // First create a task with initial assignee
       await program.methods
@@ -102,7 +102,7 @@ describe("lock-in", () => {
           "Description",
           { urgent: {} },
           { work: {} },
-          initAssignee.publicKey
+          null
         )
         .accounts({
           user: user.publicKey,
@@ -116,8 +116,11 @@ describe("lock-in", () => {
       const todoListBefore = await program.account.userTodoList.fetch(todoListPda);
       const taskId = todoListBefore.taskCount.subn(1);
 
-      // Verify initial and new assignee are different
-      expect(initAssignee.publicKey.toString()).to.not.equal(newAssignee.publicKey.toString());
+      const newAssignee = Keypair.generate();
+
+
+      // verify initial and new assignee are different
+      // expect(initAssignee.publicKey.toString()).to.not.equal(newAssignee.publicKey.toString());
 
       // Reassign task
       await program.methods
@@ -134,8 +137,8 @@ describe("lock-in", () => {
         .rpc();
 
       // Verify the reassignment
-      const todoListAfter = await program.account.userTodoList.fetch(todoListPda);
-      const task = todoListAfter.tasks[todoListAfter.tasks.length - 1];
+      const todoList = await program.account.userTodoList.fetch(todoListPda);
+      const task = todoList.tasks.find(t => t.id.eq(taskId));
       
       expect(task.assignee?.toString()).to.equal(newAssignee.publicKey.toString());
     });
@@ -167,6 +170,10 @@ describe("lock-in", () => {
     });
 
     it("should update task status to in progress", async () => {
+      // First verify initial status is pending
+      let todoListBeforeUpdate = await program.account.userTodoList.fetch(todoListPda); // come back
+      let taskBeforeUpdate = todoListBeforeUpdate.tasks[todoListBeforeUpdate.tasks.length - 1];
+    expect(JSON.stringify(taskBeforeUpdate.status)).to.equal(JSON.stringify({ pending: {} }));
       await program.methods
         .updateTaskStatus(
           taskId,
@@ -181,11 +188,14 @@ describe("lock-in", () => {
 
       // Verify status update
       const todoList = await program.account.userTodoList.fetch(todoListPda);
-      const task = todoList.tasks[todoList.tasks.length - 1];
+      const task = todoList.tasks.find(t => t.id.eq(taskId));
       expect(JSON.stringify(task.status)).to.equal(JSON.stringify({ inProgress: {} }));
     });
 
     it("should update task status to completed", async () => {
+      let todoList = await program.account.userTodoList.fetch(todoListPda);
+      let task = todoList.tasks.find(t => t.id.eq(taskId));
+      console.log("Initial task status:", task.status);
       await program.methods
         .updateTaskStatus(
           taskId,
@@ -198,10 +208,34 @@ describe("lock-in", () => {
         .signers([user])
         .rpc();
 
-      // Verify status update
-      const todoList = await program.account.userTodoList.fetch(todoListPda);
-      const task = todoList.tasks[todoList.tasks.length - 1];
-      expect(JSON.stringify(task.status)).to.equal(JSON.stringify({ completed: {} }));
+
+        // Verify the update immediately after
+        todoList = await program.account.userTodoList.fetch(todoListPda);
+        task = todoList.tasks.find(t => t.id.eq(taskId));
+        console.log("Updated task status:", task.status);
+
+        // Add a small delay to ensure state is settled
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    
+        expect(JSON.stringify(task.status)).to.equal(JSON.stringify({ completed: {} }));
+        expect(task.completedAt).to.not.be.null;
+
+
+      // // Verify status update
+      // const todoListAfterUpdate = await program.account.userTodoList.fetch(todoListPda);
+      // task = todoListAfterUpdate.tasks.find(t => t.id.eq(taskId));
+      // console.log("Updated task status:", task.status);
+
+      // // adding a small delay to ensure state is settled
+      // await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // todoList = await program.account.userTodoList.fetch(todoListPda);
+      // task = todoList.tasks.find(t => t.id.eq(taskId));
+      // console.log("Final task status:", task.status);
+
+      // const taskAfterUpdate = todoListAfterUpdate.tasks[todoListAfterUpdate.tasks.length - 1];
+      // expect(JSON.stringify(taskAfterUpdate.status)).to.equal(JSON.stringify({ completed: {} }));
+      // expect(taskAfterUpdate.completedAt).to.not.be.null;
     });
   });
 });

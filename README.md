@@ -1,94 +1,91 @@
-# template-next-tailwind-basic
+# LockdIn
 
-## Getting Started
+LockdIn is a decentralized todo list application built on the Solana blockchain. It allows users to create, manage, and track tasks with features like task assignment, priority levels, and completion streaks.
+
+## Features
+
+- Create and manage tasks with titles and descriptions
+- Set task priorities (Leisure, Casual, Urgent)
+- Categorize tasks (Work, Personal, Home, Shopping)
+- Assign tasks to other users
+- Track task status (Pending, InProgress, Completed, Cancelled)
+- Maintain completion streaks for consistent task completion
+- Task limits and validation to ensure data integrity
+
+## Smart Contract Structure
+
+The program consists of several key components:
+
+### State
+- `Task`: Represents a single todo item with properties like title, description, priority, status, etc.
+- `UserTodoList`: Stores a user's tasks and completion streak information
+
+### Instructions
+1. `create_todo_task`: Create a new task with title, description, priority, and optional assignee
+2. `update_task_status`: Update a task's status (e.g., mark as completed)
+3. `reassign_task`: Assign a task to a different user
+
+## Technical Details
+
+### Task Constraints
+- Maximum title length: 50 characters
+- Maximum description length: 250 characters
+- Maximum tasks per user: 100
+
+### Task Properties
+- ID
+- Title
+- Description
+- Creator
+- Assignee (optional)
+- Priority
+- Status
+- Category
+- Creation timestamp
+- Last update timestamp
+- Completion timestamp (if completed)
+
+### Error Handling
+The program includes comprehensive error handling for cases such as:
+- Invalid title/description length
+- Unauthorized modifications
+- Invalid status transitions
+- Task limit exceeded
+- Task not found
+
+## Development
 
 ### Prerequisites
+- Solana Tool Suite
+- Anchor Framework
+- Node.js and npm/yarn
 
-- Node v18.18.0 or higher
-
-- Rust v1.77.2 or higher
-- Anchor CLI 0.30.1 or higher
-- Solana CLI 1.18.17 or higher
-
-### Installation
-
-#### Clone the repo
-
-```shell
-git clone <repo-url>
-cd <repo-name>
+### Building
+```bash
+anchor build
 ```
 
-#### Install Dependencies
-
-```shell
-pnpm install
+### Testing
+```bash
+anchor test
 ```
 
-#### Start the web app
-
+### Program ID (subject to change)
 ```
-pnpm dev
-```
-
-## Apps
-
-### anchor
-
-This is a Solana program written in Rust using the Anchor framework.
-
-#### Commands
-
-You can use any normal anchor commands. Either move to the `anchor` directory and run the `anchor` command or prefix the command with `pnpm`, eg: `pnpm anchor`.
-
-#### Sync the program id:
-
-Running this command will create a new keypair in the `anchor/target/deploy` directory and save the address to the Anchor config file and update the `declare_id!` macro in the `./src/lib.rs` file of the program.
-
-You will manually need to update the constant in `anchor/lib/basic-exports.ts` to match the new program id.
-
-```shell
-pnpm anchor keys sync
+6rmb4Kmxibx3DVj9TDZ8tq5JrQhRGhEnyEtVrb7b8UUn
 ```
 
-#### Build the program:
+## Security Features
 
-```shell
-pnpm anchor-build
-```
+- Task modifications restricted to creator or assignee
+- PDA-based account management
+- Status transition validation
+- Task limit enforcement
 
-#### Start the test validator with the program deployed:
+## Contributing
 
-```shell
-pnpm anchor-localnet
-```
-
-#### Run the tests
-
-```shell
-pnpm anchor-test
-```
-
-#### Deploy to Devnet
-
-```shell
-pnpm anchor deploy --provider.cluster devnet
-```
-
-### web
-
-This is a React app that uses the Anchor generated client to interact with the Solana program.
-
-#### Commands
-
-Start the web app
-
-```shell
-pnpm dev
-```
-
-Build the web app
-
-```shell
-pnpm build
-```
+Feel free to submit issues and pull requests for:
+- New features
+- Bug fixes
+- Documentation improvements
+- Test coverage improvements

@@ -1,0 +1,22 @@
+.walletButton {
+    background-color: rgb(124, 58, 237) !important;
+    border: none !important;
+    color: white !important;
+    transition: background-color 0.2s ease !important;
+    padding: 0.75rem 1.5rem !important;
+    border-radius: 0.5rem !important;
+    font-weight: 500 !important;
+  }
+  
+  .walletButton:hover {
+    background-color: rgb(109, 40, 217) !important;
+  }
+  
+  .walletButton:active {
+    background-color: rgb(91, 33, 182) !important;
+  }
+  
+  .walletButton:disabled {
+    background-color: rgb(79, 79, 79) !important;
+    cursor: not-allowed !important;
+  }

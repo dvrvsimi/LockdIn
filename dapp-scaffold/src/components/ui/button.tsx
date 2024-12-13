@@ -2,7 +2,7 @@ import { FC, ButtonHTMLAttributes, ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  variant?: 'default' | 'secondary' | 'outline' | 'ghost';
   size?: 'default' | 'sm' | 'lg';
   loading?: boolean;
   children: ReactNode;
@@ -21,22 +21,21 @@ export const Button: FC<ButtonProps> = ({
   ...props
 }) => {
   // Base styles
-  const baseStyles = 'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none';
+  const baseStyles = 'inline-flex items-center justify-center rounded-lg font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none transform hover:-translate-y-0.5 active:translate-y-0';
 
   // Size variations
   const sizeStyles = {
-    default: 'h-10 py-2 px-4',
-    sm: 'h-8 px-3 text-sm',
-    lg: 'h-12 px-8 text-lg'
+    default: 'h-10 py-2 px-4 text-sm',
+    sm: 'h-8 px-3 text-xs',
+    lg: 'h-12 px-8 text-base'
   };
 
-  // Variant styles
+  // Variant styles with Solana theme
   const variantStyles = {
-    default: 'bg-blue-500 text-white hover:bg-blue-600',
-    secondary: 'bg-slate-700 text-white hover:bg-slate-600',
-    outline: 'border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white',
-    ghost: 'text-slate-300 hover:bg-slate-800 hover:text-white',
-    destructive: 'bg-red-500 text-white hover:bg-red-600'
+    default: 'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500',
+    secondary: 'bg-gray-800 text-white hover:bg-gray-700 focus:ring-gray-500',
+    outline: 'border-2 border-purple-600 text-purple-600 hover:bg-purple-50 focus:ring-purple-500',
+    ghost: 'text-purple-600 hover:bg-purple-50 focus:ring-purple-500'
   };
 
   return (

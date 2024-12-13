@@ -1,33 +1,50 @@
-import { AppProps } from 'next/app';
-import Head from 'next/head';
-import { FC } from 'react';
-import { ContextProvider } from '../contexts/ContextProvider';
-import { AppBar } from '../components/AppBar';
-import { ContentContainer } from '../components/ContentContainer';
-import { Footer } from '../components/Footer';
-import Notifications from '../components/Notification'
-require('@solana/wallet-adapter-react-ui/styles.css');
-require('../styles/globals.css');
+import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
+import { WalletProvider } from "@solana/wallet-adapter-react";
+import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
+import { clusterApiUrl } from "@solana/web3.js";
+import type { AppProps } from "next/app";
+import Head from "next/head";
 
-const App: FC<AppProps> = ({ Component, pageProps }) => {
-    return (
-        <>
-          <Head>
-            <title>Solana Scaffold Lite</title>
-          </Head>
+import {
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+  BackpackWalletAdapter,
+} from "@solana/wallet-adapter-wallets";
 
-          <ContextProvider>
-            <div className="flex flex-col h-screen">
-              <Notifications />
-              <AppBar/>
-              <ContentContainer>
-                <Component {...pageProps} />
-                <Footer/>
-              </ContentContainer>
-            </div>
-          </ContextProvider>
-        </>
-    );
-};
+import "tailwindcss/tailwind.css";
+import "@solana/wallet-adapter-react-ui/styles.css";
+import "../styles/globals.css";
+import { useMemo } from "react";
 
-export default App;
+export default function App({ Component, pageProps }: AppProps) {
+  const network = WalletAdapterNetwork.Devnet;
+  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+
+  const wallets = useMemo(
+    () => [
+      new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
+      new BackpackWalletAdapter(),
+    ],
+    []
+  );
+
+  return (
+    <>
+      <Head>
+        <title>LockdIn</title>
+        <meta name="description" content="Manage your tasks on Solana" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/favicon.svg" />
+      </Head>
+
+      <WalletProvider wallets={wallets} autoConnect>
+        <WalletModalProvider>
+          <div className="min-h-screen bg-black">
+            <Component {...pageProps} />
+          </div>
+        </WalletModalProvider>
+      </WalletProvider>
+    </>
+  );
+}

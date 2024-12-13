@@ -1,0 +1,40 @@
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background elements -->
+  <circle cx="400" cy="300" r="200" fill="#7C3AED" opacity="0.1"/>
+  <circle cx="400" cy="300" r="150" fill="#7C3AED" opacity="0.15"/>
+  
+  <!-- Code blocks in background -->
+  <rect x="100" y="150" width="120" height="20" rx="4" fill="#7C3AED" opacity="0.2"/>
+  <rect x="100" y="180" width="80" height="20" rx="4" fill="#7C3AED" opacity="0.2"/>
+  <rect x="100" y="210" width="100" height="20" rx="4" fill="#7C3AED" opacity="0.2"/>
+  
+  <rect x="580" y="320" width="120" height="20" rx="4" fill="#7C3AED" opacity="0.2"/>
+  <rect x="580" y="350" width="80" height="20" rx="4" fill="#7C3AED" opacity="0.2"/>
+  <rect x="580" y="380" width="100" height="20" rx="4" fill="#7C3AED" opacity="0.2"/>
+
+  <!-- Lock icon -->
+  <rect x="350" y="250" width="100" height="80" rx="10" fill="#7C3AED"/>
+  <rect x="370" y="220" width="60" height="40" rx="20" stroke="#7C3AED" stroke-width="12" fill="none"/>
+  
+  <!-- Chain links connecting to blockchain elements -->
+  <path d="M 300,300 Q 250,300 200,250" stroke="#7C3AED" stroke-width="4" fill="none"/>
+  <path d="M 500,300 Q 550,300 600,350" stroke="#7C3AED" stroke-width="4" fill="none"/>
+  
+  <!-- Blockchain nodes -->
+  <circle cx="180" cy="230" r="15" fill="#7C3AED"/>
+  <circle cx="620" cy="370" r="15" fill="#7C3AED"/>
+  
+  <!-- Developer figure (minimalist) -->
+  <circle cx="400" cy="450" r="40" fill="#7C3AED"/> <!-- head -->
+  <rect x="360" y="500" width="80" height="100" rx="20" fill="#7C3AED"/> <!-- body -->
+
+  <!-- Connecting lines representing data flow -->
+  <path d="M 180,230 Q 150,200 120,180" stroke="#7C3AED" stroke-width="2" opacity="0.5"/>
+  <path d="M 620,370 Q 650,400 680,420" stroke="#7C3AED" stroke-width="2" opacity="0.5"/>
+
+  <!-- Small decorative elements -->
+  <circle cx="200" cy="150" r="5" fill="#7C3AED" opacity="0.5"/>
+  <circle cx="600" cy="450" r="5" fill="#7C3AED" opacity="0.5"/>
+  <circle cx="300" cy="400" r="5" fill="#7C3AED" opacity="0.5"/>
+  <circle cx="500" cy="200" r="5" fill="#7C3AED" opacity="0.5"/>
+</svg>

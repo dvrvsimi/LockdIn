@@ -59,8 +59,8 @@ pub struct Task {
 
 impl Task {
     pub const MAX_TITLE_LENGTH: usize = 50;
-    pub const MAX_DESCRIPTION_LENGTH: usize = 250;
-    pub const MAX_TASKS: usize = 100;
+    pub const MAX_DESCRIPTION_LENGTH: usize = 300;
+    pub const MAX_TASKS: usize = 20;
 
     pub fn new(
         id: u64,

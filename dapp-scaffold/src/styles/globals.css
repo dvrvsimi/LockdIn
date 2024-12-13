@@ -3,12 +3,10 @@
 @tailwind utilities;
 
 .wallet-adapter-modal-wrapper {
-  background-color: rgb(31, 33, 40) !important;
+  background-color: rgb(31, 33, 40) !important;  /*maybe tweak this color*/
 }
 
 .wallet-adapter-button {
   padding: 0.5rem 1rem !important;
   border-radius: 0.5rem !important;
 }
-
-/* You can add more global styles here */

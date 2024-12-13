@@ -1,20 +1,62 @@
-import { FC, useState } from 'react';
+import { FC, useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardHeader, CardContent, CardTitle } from '../../components/ui/cards';
 import { TaskCard } from '../../components/TaskCard';
 import { TaskStats } from '../../components/TaskStats';
 import { NewTaskDialog } from '../../components/NewTaskDialog';
+import { useTaskProgram } from '../../hooks/useTaskProgram';
+import { Task } from '../../models/types/task';
 import styles from '../../styles/Home.module.css';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 export const HomeView: FC = () => {
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
+  const { fetchTasks } = useTaskProgram();
   const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadTasks = useCallback(async () => {
+    if (!publicKey) return;
+    
+    try {
+      setLoading(true);
+      const fetchedTasks = await fetchTasks();
+      setTasks(fetchedTasks as Task[] || []);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [publicKey, fetchTasks]);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
+  const handleTaskCreated = async () => {
+    setIsNewTaskDialogOpen(false);
+    await loadTasks();
+  };
+
+  const handleEditTask = async (taskId: number) => {
+    // Todo: Implement edit functionality
+    console.log('Editing task:', taskId);
+  };
+
+  const handleDeleteTask = async (taskId: number) => {
+    // Todo: Implement delete functionality
+    console.log('Deleting task:', taskId);
+  };
+
+  const activeTasks = tasks.filter(task => task.status.pending || task.status.inProgress).length;
+  const completedTasks = tasks.filter(task => task.status.completed).length;
+  const streak = 0; // This will need to be calculated based on your data structure
 
   return (
     <div className={`min-h-screen flex flex-col ${publicKey ? 'bg-black' : ''}`}>
@@ -68,16 +110,16 @@ export const HomeView: FC = () => {
         ) : (
           <div className="space-y-8">
             <TaskStats 
-              activeTasks={0}
-              completedTasks={0}
-              streak={0}
+              activeTasks={activeTasks}
+              completedTasks={completedTasks}
+              streak={streak}
             />
 
             {/* Tasks Section */}
             <Card className="shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between bg-white">
+              <CardHeader className="flex flex-row items-center justify-between bg-black">
                 <CardTitle className="text-xl font-semibold text-white">
-                  My Tasks
+                  My Tasks {loading && '(Loading...)'}
                 </CardTitle>
                 <Button 
                   className="bg-purple-600 hover:bg-purple-700"
@@ -89,10 +131,20 @@ export const HomeView: FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Placeholder when no tasks */}
-                  <div className="text-center py-12 text-gray-500">
-                    No tasks yet. Create your first task to get started!
-                  </div>
+                  {tasks.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      {loading ? 'Loading tasks...' : 'No tasks yet. Create your first task to get started!'}
+                    </div>
+                  ) : (
+                    tasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onEdit={handleEditTask}
+                        onDelete={handleDeleteTask}
+                      />
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -104,6 +156,7 @@ export const HomeView: FC = () => {
       <NewTaskDialog 
         isOpen={isNewTaskDialogOpen}
         onClose={() => setIsNewTaskDialogOpen(false)}
+        onTaskCreated={handleTaskCreated}
       />
     </div>
   );

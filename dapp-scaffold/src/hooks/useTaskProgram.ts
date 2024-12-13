@@ -3,8 +3,10 @@ import { PublicKey, SystemProgram } from '@solana/web3.js';
 import * as anchor from '@project-serum/anchor';
 import { IDL } from '../utils/lock_in';
 import { notify } from '../utils/notifications';
+import { Task } from '../models/types/task';
 
-const PROGRAM_ID = new PublicKey('6rmb4Kmxibx3DVj9TDZ8tq5JrQhRGhEnyEtVrb7b8UUn');
+
+const PROGRAM_ID = new PublicKey('6rmb4Kmxibx3DVj9TDZ8tq5JrQhRGhEnyEtVrb7b8UUn'); // change after deploying program!!!!!!
 
 export const useTaskProgram = () => {
   const { connection } = useConnection();
@@ -22,7 +24,7 @@ export const useTaskProgram = () => {
         signTransaction: wallet.signTransaction,
         signAllTransactions: wallet.signAllTransactions,
       },
-      { commitment: 'confirmed' }
+      { commitment: 'processed' }
     );
 
     return new anchor.Program(IDL, PROGRAM_ID, provider);
@@ -33,7 +35,7 @@ export const useTaskProgram = () => {
       [anchor.utils.bytes.utf8.encode('user-todo-list'), owner.toBuffer()],
       PROGRAM_ID
     );
-    return todoListPDA;
+    return todoListPDA; // how to handle error from wrong deployed program id? or does that not matter?
   };
 
   const createTask = async (
@@ -44,8 +46,19 @@ export const useTaskProgram = () => {
     assignee?: PublicKey
   ) => {
     try {
+      if (!wallet.publicKey) throw new Error('Wallet not connected!');
+
       const program = getProgram();
-      const todoListPDA = await getTodoListPDA(wallet.publicKey!);
+      const todoListPDA = await getTodoListPDA(wallet.publicKey);
+
+      // First, check if the todo list account exists
+      let todoList;
+      try {
+        todoList = await program.account.userTodoList.fetch(todoListPDA);
+      } catch (e) {
+        // If account doesn't exist, we'll create it with the first task
+        console.log('Todo list account does not exist, creating...');
+      }
 
       const tx = await program.methods
         .createTodoTask(
@@ -56,29 +69,50 @@ export const useTaskProgram = () => {
           assignee || null
         )
         .accounts({
-          user: wallet.publicKey!,
+          user: wallet.publicKey,
           todoList: todoListPDA,
           systemProgram: SystemProgram.programId,
         })
         .rpc();
 
-      notify({ type: 'success', message: 'Task created successfully!', txid: tx });
+      await connection.confirmTransaction(tx);
+      
+      notify({ 
+        type: 'success', 
+        message: 'Task created successfully!', 
+        txid: tx,
+        description: `Task "${title}" has been created on the blockchain.`
+      });
+
       return tx;
     } catch (error: any) {
-      notify({ type: 'error', message: `Failed to create task: ${error?.message}` });
+      console.error('Error creating task:', error);
+      notify({ 
+        type: 'error', 
+        message: 'Failed to create task', 
+        description: error?.message
+      });
       throw error;
     }
   };
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (): Promise<Task[]> => {
     try {
+      if (!wallet.publicKey) throw new Error('Wallet not connected!');
+
       const program = getProgram();
-      const todoListPDA = await getTodoListPDA(wallet.publicKey!);
+      const todoListPDA = await getTodoListPDA(wallet.publicKey);
+      
       const account = await program.account.userTodoList.fetch(todoListPDA);
-      return account.tasks;
+      return account.tasks as Task[]; // still don't know why i have to as Task[]
     } catch (error: any) {
-      notify({ type: 'error', message: `Failed to fetch tasks: ${error?.message}` });
-      throw error;
+      console.error('Error fetching tasks:', error);
+      notify({ 
+        type: 'error', 
+        message: 'Failed to fetch tasks', 
+        description: error?.message 
+      });
+      return [];
     }
   };
 

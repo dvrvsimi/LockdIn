@@ -1,9 +1,32 @@
-export type EndpointTypes = 'mainnet' | 'devnet' | 'localnet'
+import { PublicKey } from '@solana/web3.js';
+
+export type EndpointTypes = 'mainnet' | 'devnet' | 'localnet';
+
 export type TaskStatus = 'Pending' | 'InProgress' | 'Completed' | 'Cancelled';
 export type TaskPriority = 'Leisure' | 'Casual' | 'Urgent';
 export type TaskCategory = 'Work' | 'Personal' | 'Home' | 'Shopping';
 
-import { PublicKey } from '@solana/web3.js';
+
+// Enums for internal use that match the Anchor program's expected format
+export const TaskStatusValues = {
+  Pending: { pending: {} },
+  InProgress: { inProgress: {} },
+  Completed: { completed: {} },
+  Cancelled: { cancelled: {} }
+} as const;
+
+export const TaskPriorityValues = {
+  Leisure: { leisure: {} },
+  Casual: { casual: {} },
+  Urgent: { urgent: {} }
+} as const;
+
+export const TaskCategoryValues = {
+  Work: { work: {} },
+  Personal: { personal: {} },
+  Home: { home: {} },
+  Shopping: { shopping: {} }
+} as const;
 
 export interface Task {
   id: number;
@@ -11,15 +34,15 @@ export interface Task {
   description: string;
   creator: PublicKey;
   assignee: PublicKey | null;
-  priority: 'Leisure' | 'Casual' | 'Urgent';
-  status: {
-    pending?: {};
-    inProgress?: {};
-    completed?: {};
-    cancelled?: {};
-  };
-  category: 'Work' | 'Personal' | 'Home' | 'Shopping';
+  priority: typeof TaskPriorityValues[keyof typeof TaskPriorityValues];
+  status: typeof TaskStatusValues[keyof typeof TaskStatusValues];
+  category: typeof TaskCategoryValues[keyof typeof TaskCategoryValues];
   createdAt: number;
   updatedAt: number;
   completedAt: number | null;
 }
+
+// Helper functions to convert between string types and Anchor format
+export const getTaskStatusValue = (status: TaskStatus) => TaskStatusValues[status];
+export const getTaskPriorityValue = (priority: TaskPriority) => TaskPriorityValues[priority];
+export const getTaskCategoryValue = (category: TaskCategory) => TaskCategoryValues[category];

@@ -1,4 +1,4 @@
-import { FC, useState, useEffect, useCallback } from 'react';
+import { FC, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
@@ -10,8 +10,8 @@ import { TaskCard } from '../../components/TaskCard';
 import { TaskStats } from '../../components/TaskStats';
 import { NewTaskDialog } from '../../components/NewTaskDialog';
 import { useTaskProgram } from '../../hooks/useTaskProgram';
-import { Task } from '../../models/types/task';
-import styles from '../../styles/Home.module.css';
+import { Task, TaskStatusValues } from '../../models/types/task';
+import styles from '@/styles/Home.module.css';
 
 export const HomeView: FC = () => {
   const { publicKey } = useWallet();
@@ -21,27 +21,45 @@ export const HomeView: FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadTasks = useCallback(async () => {
-    if (!publicKey) return;
-    
-    try {
-      setLoading(true);
-      const fetchedTasks = await fetchTasks();
-      setTasks(fetchedTasks as Task[] || []);
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [publicKey, fetchTasks]);
-
   useEffect(() => {
+    let mounted = true;
+
+    const loadTasks = async () => {
+      if (!publicKey) return;
+      
+      try {
+        setLoading(true);
+        const fetchedTasks = await fetchTasks();
+        if (mounted) {
+          setTasks(fetchedTasks || []);
+        }
+      } catch (error) {
+        console.error('Error loading tasks:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     loadTasks();
-  }, [loadTasks]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [publicKey, fetchTasks]);
 
   const handleTaskCreated = async () => {
     setIsNewTaskDialogOpen(false);
-    await loadTasks();
+    if (publicKey) {
+      try {
+        setLoading(true);
+        const fetchedTasks = await fetchTasks();
+        setTasks(fetchedTasks || []);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   const handleEditTask = async (taskId: number) => {
@@ -54,12 +72,21 @@ export const HomeView: FC = () => {
     console.log('Deleting task:', taskId);
   };
 
-  const activeTasks = tasks.filter(task => task.status.pending || task.status.inProgress).length;
-  const completedTasks = tasks.filter(task => task.status.completed).length;
-  const streak = 0; // This will need to be calculated based on your data structure
+  const activeTasks = tasks.filter(task =>
+    task.status === TaskStatusValues.Pending ||
+    task.status === TaskStatusValues.InProgress
+  ).length;
+  
+  
+  const completedTasks = tasks.filter(task =>
+    task.status === TaskStatusValues.Completed
+  ).length;
+  
+  
+    const streak = 0;
 
   return (
-    <div className={`min-h-screen flex flex-col ${publicKey ? 'bg-black' : ''}`}>
+    <div className="min-h-screen flex flex-col bg-black">
       {/* Navbar */}
       <nav className="bg-[#120030]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

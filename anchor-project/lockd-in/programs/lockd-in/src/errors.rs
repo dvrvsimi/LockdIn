@@ -22,4 +22,7 @@ pub enum TodoError {
 
     #[msg("Task not found")]
     TaskNotFound,
+
+    #[msg("Invalid deadline - must be in the future")]
+    InvalidDeadline,
 }

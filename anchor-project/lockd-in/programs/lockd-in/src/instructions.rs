@@ -1,8 +1,9 @@
 use anchor_lang::prelude::*;
 use crate::errors::TodoError;
-use crate::state::{Task, TaskPriority, TaskStatus, TaskCategory, UserTodoList};
+use crate::state::{Task, TaskPriority, TaskStatus, TaskCategory, UserTodoList, TaskNotification, NotificationAccount};
 
 #[derive(Accounts)]
+#[instruction(bump: u8)]
 pub struct CreateTask<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -15,6 +16,20 @@ pub struct CreateTask<'info> {
         space = 8 + std::mem::size_of::<UserTodoList>() + 1024
     )]
     pub todo_list: Account<'info, UserTodoList>,
+
+
+    // notif account
+    #[account(
+        init_if_needed,
+        seeds = [b"user-notifications", assignee.key().as_ref()],
+        bump,
+        payer = user,
+        space = 8 + std::mem::size_of::<NotificationAccount>() + 1024
+    )]
+    pub notification_account: Account<'info, NotificationAccount>,
+
+    /// CHECK: Only used as a key for seeds?
+    pub assignee: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -44,8 +59,44 @@ pub struct AssignTask<'info> {
     )]
     pub todo_list: Account<'info, UserTodoList>,
 
+    #[account(
+        init_if_needed,
+        seeds = [b"user-notifications", assignee.key().as_ref()],
+        bump,
+        payer = creator,
+        space = 8 + std::mem::size_of::<NotificationAccount>() + 1024
+    )]
+    pub notification_account: Account<'info, NotificationAccount>,
+
     /// CHECK: Validated in handler
     pub assignee: UncheckedAccount<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetReminder<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    
+    #[account(
+        mut,
+        seeds = [b"user-todo-list", user.key().as_ref()],
+        bump = todo_list.bump,
+    )]
+    pub todo_list: Account<'info, UserTodoList>,
+
+    #[account(
+        init_if_needed,
+        seeds = [b"user-notifications", user.key().as_ref()],
+        bump,
+        space = 8 + std::mem::size_of::<NotificationAccount>() + 1024,
+        payer = user
+    )]
+
+    pub notification_account: Account<'info, NotificationAccount>,
+
+    pub system_program: Program<'info, System>,
 }
 
 pub fn create_task(
@@ -64,6 +115,7 @@ pub fn create_task(
     let task_id = todo_list.task_count.checked_add(1)
         .ok_or(TodoError::MaxTasksLimitReached)?;
 
+    let task_title = title.clone();
     let new_task = Task::new(
         task_id,
         title,
@@ -76,6 +128,21 @@ pub fn create_task(
 
     todo_list.tasks.push(new_task);
     todo_list.task_count += 1;
+
+    // if user is assigning task to someone else
+    if assignee.is_some() {
+        let notification = TaskNotification {
+            task_id,
+            from: ctx.accounts.user.key(),
+            title: format!("New Task Assigned: {}", task_title),
+            timestamp: Clock::get()?.unix_timestamp,
+            read: false,
+        };
+        
+        let notification_account = &mut ctx.accounts.notification_account;
+        notification_account.notifications.push(notification);
+    
+    }
 
     Ok(())
 }
@@ -151,6 +218,86 @@ pub fn assign_task(
     require!(task.creator == ctx.accounts.creator.key(), TodoError::UnauthorizedModification);
 
     task.assignee = Some(new_assignee);
+    task.updated_at = current_timestamp;
+
+    
+    // notif feature
+    let notification = TaskNotification {
+        task_id,
+        from: ctx.accounts.creator.key(),
+        title: format!("Task Reassigned: {}", task.title),
+        timestamp: current_timestamp,
+        read: false,
+    };
+    
+    let notification_account = &mut ctx.accounts.notification_account;
+    notification_account.notifications.push(notification);
+
+    Ok(())
+}
+
+
+pub fn set_reminder(
+    ctx: Context<SetReminder>,
+    task_id: u64,
+    deadline: i64,  // timestamp for the deadline
+) -> Result<()> {
+    let todo_list = &mut ctx.accounts.todo_list;
+    let current_timestamp = Clock::get()?.unix_timestamp;
+    
+    // Find the task
+    let task = todo_list.tasks.iter_mut()
+        .find(|t| t.id == task_id)
+        .ok_or(TodoError::TaskNotFound)?;
+    
+    // verify the user is either the creator OR assignee
+    require!(
+        task.creator == ctx.accounts.user.key() || 
+        task.assignee == Some(ctx.accounts.user.key()),
+        TodoError::UnauthorizedModification
+    );
+
+    // ensure deadline is in the future
+    require!(
+        deadline > current_timestamp,
+        TodoError::InvalidDeadline // add this in errors.rs
+    );
+
+    // calculate days until deadline
+    let days_until_deadline = (deadline - current_timestamp) / 86400; // convert to days
+
+    // create reminder notification based on urgency
+    let reminder_message = match days_until_deadline {
+        0 => format!("URGENT: Task '{}' is due today!", task.title),
+        1 => format!("Task '{}' is due tomorrow!", task.title),
+        2..=3 => format!("Task '{}' is due in {} days", task.title, days_until_deadline),
+        _ => {
+            // Format date as dd-mm-yyyy using timestamp
+            let seconds_per_day = 86400;
+            let days_since_epoch = deadline / seconds_per_day;
+            let years = 1970 + (days_since_epoch / 365);
+            let days = days_since_epoch % 365;
+            let months = (days / 30) + 1;
+            let day = (days % 30) + 1;
+            
+            format!("Task '{}' is due on {}-{:02}-{:02}", 
+                task.title, day, months, years)
+        }
+    };
+
+    let notification = TaskNotification {
+        task_id,
+        from: ctx.accounts.user.key(),
+        title: reminder_message,
+        timestamp: current_timestamp,
+        read: false,
+    };
+
+    let notification_account = &mut ctx.accounts.notification_account;
+    notification_account.notifications.push(notification);
+
+    // update task deadline
+    task.deadline = Some(deadline);
     task.updated_at = current_timestamp;
 
     Ok(())

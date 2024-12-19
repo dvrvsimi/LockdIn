@@ -55,6 +55,7 @@ pub struct Task {
     pub created_at: i64,
     pub updated_at: i64,
     pub completed_at: Option<i64>,
+    pub deadline: Option<i64>,
 }
 
 impl Task {
@@ -84,6 +85,7 @@ impl Task {
             created_at: now,
             updated_at: now,
             completed_at: None,
+            deadline: None,
         }
     }
 }
@@ -112,4 +114,27 @@ impl UserTodoList {
             bump,
         }
     }
+}
+
+
+#[account]
+#[derive(Debug, Default)]
+pub struct TaskNotification {
+    pub task_id: u64,
+    pub from: Pubkey,
+    pub title: String,
+    pub timestamp: i64,
+    pub read: bool,
+}
+
+#[account]
+pub struct NotificationAccount {
+    pub owner: Pubkey,
+    pub notifications: Vec<TaskNotification>,
+    pub bump: u8,
+}
+
+
+impl NotificationAccount {
+    pub const SEED: &'static str = "user-notifications";
 }

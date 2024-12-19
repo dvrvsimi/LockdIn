@@ -52,3 +52,15 @@ pub mod lockd_in {
             new_assignee)
     }
 }
+
+pub fn set_task_reminder(
+    ctx: Context<SetReminder>,
+    task_id: u64,
+    deadline: i64,
+) -> Result<()> {
+    instructions::set_reminder(
+        ctx,
+        task_id,
+        deadline
+    )
+}

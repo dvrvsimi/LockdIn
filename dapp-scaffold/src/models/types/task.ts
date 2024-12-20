@@ -46,3 +46,13 @@ export interface Task {
 export const getTaskStatusValue = (status: TaskStatus) => TaskStatusValues[status];
 export const getTaskPriorityValue = (priority: TaskPriority) => TaskPriorityValues[priority];
 export const getTaskCategoryValue = (category: TaskCategory) => TaskCategoryValues[category];
+
+
+export interface TodoListAccount {
+  owner: PublicKey;
+  tasks: Task[];
+  taskCount: number;
+  completedTaskStreak: number;
+  lastCompletedDate: number | null;
+  bump: number;
+}

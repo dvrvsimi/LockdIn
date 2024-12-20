@@ -11,7 +11,7 @@ import { TaskStats } from '../../components/TaskStats';
 import { NewTaskDialog } from '../../components/NewTaskDialog';
 import { useTaskProgram } from '../../hooks/useTaskProgram';
 import { Task, TaskStatusValues } from '../../models/types/task';
-import styles from '@/styles/Home.module.css';
+import styles from '../../styles/Home.module.css';
 
 export const HomeView: FC = () => {
   const { publicKey } = useWallet();
@@ -144,8 +144,8 @@ export const HomeView: FC = () => {
 
             {/* Tasks Section */}
             <Card className="shadow-lg">
-              <CardHeader className="flex flex-row items-center justify-between bg-black">
-                <CardTitle className="text-xl font-semibold text-white">
+              <CardHeader className="flex flex-row items-center justify-between bg-white">
+                <CardTitle className="text-xl font-semibold text-black">
                   My Tasks {loading && '(Loading...)'}
                 </CardTitle>
                 <Button 
@@ -158,9 +158,15 @@ export const HomeView: FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {tasks.length === 0 ? (
+                  {loading ? (
                     <div className="text-center py-12 text-gray-500">
-                      {loading ? 'Loading tasks...' : 'No tasks yet. Create your first task to get started!'}
+                      Loading tasks...
+                    </div>
+                  ) : tasks.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      {publicKey 
+                        ? 'No tasks yet. Create your first task to get started!'
+                        : 'Connect your wallet to view tasks'}
                     </div>
                   ) : (
                     tasks.map((task) => (

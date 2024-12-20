@@ -4,18 +4,39 @@ import { LockdIn } from "../target/types/lockd_in";
 import { PublicKey, Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
 import { expect } from "chai";
 
-describe("lock-in", () => {
+describe("lockd-in", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
-
   const program = anchor.workspace.LockdIn as Program<LockdIn>;
   
   // Test accounts
   const user = Keypair.generate();
   const assignee = Keypair.generate();
-
-  // Store PDA for todo list
   let todoListPda: PublicKey;
+  let notificationPda: PublicKey;
+
+  // Helper functions
+  const deriveNotificationPDA = async (owner: PublicKey): Promise<PublicKey> => {
+    const [pda] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from("user-notifications"),
+        owner.toBuffer()
+      ],
+      program.programId
+    );
+    return pda;
+  };
+
+  const deriveTodoListPDA = async (owner: PublicKey): Promise<PublicKey> => {
+    const [pda] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from("user-todo-list"),
+        owner.toBuffer()
+      ],
+      program.programId
+    );
+    return pda;
+  };
 
   before(async () => {
     // Airdrop SOL to user for transactions
@@ -25,15 +46,15 @@ describe("lock-in", () => {
     );
     await provider.connection.confirmTransaction(signature);
 
-    // Find PDA for todo list
-    const [pda] = await PublicKey.findProgramAddress(
-      [
-        Buffer.from("user-todo-list"),
-        user.publicKey.toBuffer()
-      ],
-      program.programId
+    const signatureAssignee = await provider.connection.requestAirdrop(
+      assignee.publicKey,
+      LAMPORTS_PER_SOL
     );
-    todoListPda = pda;
+    await provider.connection.confirmTransaction(signatureAssignee);
+
+    // Initialize PDAs
+    todoListPda = await deriveTodoListPDA(user.publicKey);
+    notificationPda = await deriveNotificationPDA(assignee.publicKey);
   });
 
   describe("create_todo_task", () => {
@@ -41,35 +62,43 @@ describe("lock-in", () => {
       const title = "Test Task";
       const description = "Test Description";
       
-      await program.methods
-        .createTodoTask(
-          title,
-          description,
-          { casual: {} },  // TaskPriority
-          { work: {} },    // TaskCategory
-          null            // No assignee
-        )
-        .accounts({
-          user: user.publicKey,
-          todoList: todoListPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([user])
-        .rpc();
-
-      // Fetch the todo list account and verify
-      const todoList = await program.account.userTodoList.fetch(todoListPda);
-      expect(todoList.taskCount.toString()).to.equal("1");
-      expect(todoList.tasks[0].title).to.equal(title);
-      expect(todoList.tasks[0].description).to.equal(description);
-      expect(todoList.tasks[0].creator.toString()).to.equal(user.publicKey.toString());
-    });
-
-    it("should fail with invalid title", async () => {
       try {
         await program.methods
           .createTodoTask(
-            "a".repeat(51),  // Empty title
+            title,
+            description,
+            { casual: {} },
+            { work: {} },
+            assignee.publicKey
+          )
+          .accounts({
+            user: user.publicKey,
+            todoList: todoListPda,
+            notificationAccount: notificationPda,
+            assignee: assignee.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([user])
+          .rpc();
+
+        const todoList = await program.account.userTodoList.fetch(todoListPda);
+        expect(todoList.taskCount.toString()).to.equal("1");
+        expect(todoList.tasks[0].title).to.equal(title);
+        expect(todoList.tasks[0].description).to.equal(description);
+        expect(todoList.tasks[0].creator.toString()).to.equal(user.publicKey.toString());
+      } catch (error) {
+        console.error("Error:", error);
+        throw error;
+      }
+    });
+
+    it("should fail with invalid title", async () => {
+      const userNotificationPda = await deriveNotificationPDA(user.publicKey);
+      
+      try {
+        await program.methods
+          .createTodoTask(
+            "a".repeat(51),
             "Description",
             { casual: {} },
             { work: {} },
@@ -78,28 +107,92 @@ describe("lock-in", () => {
           .accounts({
             user: user.publicKey,
             todoList: todoListPda,
+            notificationAccount: userNotificationPda,
+            assignee: user.publicKey,
             systemProgram: SystemProgram.programId,
           })
           .signers([user])
           .rpc();
-        expect.fail("Expected tx failure");
+        expect.fail("Expected to fail with invalid title");
       } catch (error: any) {
         const errorMsg = error.error?.message || error.message;
         expect(errorMsg).to.include("Invalid task title or description");
-        }
       }
-    );
+    });
+  });
+
+  describe("set_task_reminder", () => {
+    let taskId: anchor.BN;
+
+    beforeEach(async () => {
+      try {
+        await program.methods
+          .createTodoTask(
+            "Task with Reminder",
+            "Description",
+            { urgent: {} },
+            { work: {} },
+            assignee.publicKey
+          )
+          .accounts({
+            user: user.publicKey,
+            todoList: todoListPda,
+            notificationAccount: notificationPda,
+            assignee: assignee.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([user])
+          .rpc();
+
+        const todoList = await program.account.userTodoList.fetch(todoListPda);
+        taskId = todoList.taskCount.subn(1);
+      } catch (error) {
+        console.error("Error in beforeEach:", error);
+        throw error;
+      }
+    });
+
+    it("should set a reminder successfully", async () => {
+      const now = Math.floor(Date.now() / 1000);
+      const deadline = now + (3 * 24 * 60 * 60);
+      const userNotificationPda = await deriveNotificationPDA(user.publicKey);
+
+      try {
+        await program.methods
+          .setTaskReminder(
+            taskId,
+            new anchor.BN(deadline)
+          )
+          .accounts({
+            user: user.publicKey,
+            todoList: todoListPda,
+            notificationAccount: userNotificationPda,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([user])
+          .rpc();
+
+        const todoList = await program.account.userTodoList.fetch(todoListPda);
+        const task = todoList.tasks.find(t => t.id.eq(taskId));
+        expect(task.deadline?.toNumber()).to.equal(deadline);
+      } catch (error) {
+        console.error("Error:", error);
+        throw error;
+      }
+    });
   });
 
   describe("reassign_task", () => {
     it("should reassign a task to new assignee", async () => {
-      // const initAssignee = Keypair.generate();
-
-      // First create a task with initial assignee
+      const title = "Task to Reassign";
+      const description = "Description";
+      const userNotificationPda = await deriveNotificationPDA(user.publicKey);
+      
+      // Create task without initial assignee
       await program.methods
         .createTodoTask(
-          "Task to Reassign",
-          "Description",
+          title,
+          description, 
           { urgent: {} },
           { work: {} },
           null
@@ -107,22 +200,19 @@ describe("lock-in", () => {
         .accounts({
           user: user.publicKey,
           todoList: todoListPda,
+          notificationAccount: userNotificationPda,
+          assignee: user.publicKey,
           systemProgram: SystemProgram.programId,
         })
         .signers([user])
         .rpc();
 
-      // Get task ID
-      const todoListBefore = await program.account.userTodoList.fetch(todoListPda);
-      const taskId = todoListBefore.taskCount.subn(1);
+      const todoList = await program.account.userTodoList.fetch(todoListPda);
+      const taskId = todoList.taskCount.subn(1);
 
       const newAssignee = Keypair.generate();
+      const newAssigneeNotificationPda = await deriveNotificationPDA(newAssignee.publicKey);
 
-
-      // verify initial and new assignee are different
-      // expect(initAssignee.publicKey.toString()).to.not.equal(newAssignee.publicKey.toString());
-
-      // Reassign task
       await program.methods
         .reassignTask(
           taskId,
@@ -131,24 +221,26 @@ describe("lock-in", () => {
         .accounts({
           creator: user.publicKey,
           todoList: todoListPda,
+          notificationAccount: newAssigneeNotificationPda,
           assignee: newAssignee.publicKey,
+          systemProgram: SystemProgram.programId,
         })
         .signers([user])
         .rpc();
 
-      // Verify the reassignment
-      const todoList = await program.account.userTodoList.fetch(todoListPda);
-      const task = todoList.tasks.find(t => t.id.eq(taskId));
-      
+      const updatedTodoList = await program.account.userTodoList.fetch(todoListPda);
+      const task = updatedTodoList.tasks.find(t => t.id.eq(taskId));
       expect(task.assignee?.toString()).to.equal(newAssignee.publicKey.toString());
     });
   });
 
   describe("update_task_status", () => {
     let taskId: anchor.BN;
+    let userNotificationPda: PublicKey;
 
     beforeEach(async () => {
-      // Create a new task for status updates
+      userNotificationPda = await deriveNotificationPDA(user.publicKey);
+      
       await program.methods
         .createTodoTask(
           "Status Test Task",
@@ -160,6 +252,8 @@ describe("lock-in", () => {
         .accounts({
           user: user.publicKey,
           todoList: todoListPda,
+          notificationAccount: userNotificationPda,
+          assignee: user.publicKey,
           systemProgram: SystemProgram.programId,
         })
         .signers([user])
@@ -170,10 +264,10 @@ describe("lock-in", () => {
     });
 
     it("should update task status to in progress", async () => {
-      // First verify initial status is pending
-      let todoListBeforeUpdate = await program.account.userTodoList.fetch(todoListPda); // come back
+      let todoListBeforeUpdate = await program.account.userTodoList.fetch(todoListPda);
       let taskBeforeUpdate = todoListBeforeUpdate.tasks[todoListBeforeUpdate.tasks.length - 1];
-    expect(JSON.stringify(taskBeforeUpdate.status)).to.equal(JSON.stringify({ pending: {} }));
+      expect(JSON.stringify(taskBeforeUpdate.status)).to.equal(JSON.stringify({ pending: {} }));
+
       await program.methods
         .updateTaskStatus(
           taskId,
@@ -186,16 +280,12 @@ describe("lock-in", () => {
         .signers([user])
         .rpc();
 
-      // Verify status update
       const todoList = await program.account.userTodoList.fetch(todoListPda);
       const task = todoList.tasks.find(t => t.id.eq(taskId));
       expect(JSON.stringify(task.status)).to.equal(JSON.stringify({ inProgress: {} }));
     });
 
     it("should update task status to completed", async () => {
-      let todoList = await program.account.userTodoList.fetch(todoListPda);
-      let task = todoList.tasks.find(t => t.id.eq(taskId));
-      console.log("Initial task status:", task.status);
       await program.methods
         .updateTaskStatus(
           taskId,
@@ -208,34 +298,120 @@ describe("lock-in", () => {
         .signers([user])
         .rpc();
 
+      const todoList = await program.account.userTodoList.fetch(todoListPda);
+      const task = todoList.tasks.find(t => t.id.eq(taskId));
+      expect(JSON.stringify(task.status)).to.equal(JSON.stringify({ completed: {} }));
+      expect(task.completedAt).to.not.be.null;
+    });
 
-        // Verify the update immediately after
-        todoList = await program.account.userTodoList.fetch(todoListPda);
-        task = todoList.tasks.find(t => t.id.eq(taskId));
-        console.log("Updated task status:", task.status);
+    it("should prevent updating completed task", async () => {
+      await program.methods
+        .updateTaskStatus(taskId, { completed: {} })
+        .accounts({
+          user: user.publicKey,
+          todoList: todoListPda,
+        })
+        .signers([user])
+        .rpc();
 
-        // Add a small delay to ensure state is settled
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      try {
+        await program.methods
+          .updateTaskStatus(taskId, { inProgress: {} })
+          .accounts({
+            user: user.publicKey,
+            todoList: todoListPda,
+          })
+          .signers([user])
+          .rpc();
+        expect.fail("Should not be able to update completed task");
+      } catch (error: any) {
+        expect(error.error.errorMessage).to.equal("Task already completed");
+      }
+    });
+  });
+
+  describe("task_notifications", () => {
+    it("should notify assignee when task is assigned", async () => {
+      const title = "Test Task with Notification";
     
-        expect(JSON.stringify(task.status)).to.equal(JSON.stringify({ completed: {} }));
-        expect(task.completedAt).to.not.be.null;
-
-
-      // // Verify status update
-      // const todoListAfterUpdate = await program.account.userTodoList.fetch(todoListPda);
-      // task = todoListAfterUpdate.tasks.find(t => t.id.eq(taskId));
-      // console.log("Updated task status:", task.status);
-
-      // // adding a small delay to ensure state is settled
-      // await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // todoList = await program.account.userTodoList.fetch(todoListPda);
-      // task = todoList.tasks.find(t => t.id.eq(taskId));
-      // console.log("Final task status:", task.status);
-
-      // const taskAfterUpdate = todoListAfterUpdate.tasks[todoListAfterUpdate.tasks.length - 1];
-      // expect(JSON.stringify(taskAfterUpdate.status)).to.equal(JSON.stringify({ completed: {} }));
-      // expect(taskAfterUpdate.completedAt).to.not.be.null;
+      try {
+        await program.methods
+          .createTodoTask(
+            title,
+            "Description",
+            { casual: {} },
+            { work: {} },
+            assignee.publicKey
+          )
+          .accounts({
+            user: user.publicKey,
+            todoList: todoListPda,
+            notificationAccount: notificationPda,
+            assignee: assignee.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([user])
+          .rpc();
+    
+        const notificationAccount = await program.account.notificationAccount.fetch(notificationPda);
+        expect(notificationAccount.notifications).to.have.length.above(0);
+      } catch (error) {
+        console.error("Error:", error);
+        throw error;
+      }
+    });
+  
+    it("should notify assignee when task is reassigned", async () => {
+      const userNotificationPda = await deriveNotificationPDA(user.publicKey);
+      
+      try {
+        await program.methods
+          .createTodoTask(
+            "Task to Reassign",
+            "Description",
+            { casual: {} },
+            { work: {} },
+            null
+          )
+          .accounts({
+            user: user.publicKey,
+            todoList: todoListPda,
+            notificationAccount: userNotificationPda,
+            assignee: user.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([user])
+          .rpc();
+  
+        const todoList = await program.account.userTodoList.fetch(todoListPda);
+        const taskId = todoList.taskCount.subn(1);
+  
+        await program.methods
+          .reassignTask(
+            taskId,
+            assignee.publicKey
+          )
+          .accounts({
+            creator: user.publicKey,
+            todoList: todoListPda,
+            notificationAccount: notificationPda,
+            assignee: assignee.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([user])
+          .rpc();
+  
+        const notificationAccount = await program.account.notificationAccount.fetch(notificationPda);
+        const latestNotification = notificationAccount.notifications[notificationAccount.notifications.length - 1];
+  
+        expect(latestNotification).to.not.be.undefined;
+        expect(latestNotification.title).to.include("Task Reassigned");
+        expect(latestNotification.from.toString()).to.equal(user.publicKey.toString());
+        expect(latestNotification.read).to.be.false;
+      } catch (error) {
+        console.error("Error:", error);
+        throw error;
+      }
     });
   });
 });

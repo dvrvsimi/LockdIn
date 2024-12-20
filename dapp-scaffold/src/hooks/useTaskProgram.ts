@@ -1,7 +1,7 @@
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import * as anchor from '@project-serum/anchor';
-import { IDL } from '../utils/lock_in';
+import { IDL } from '../utils/lockd_in';
 import { notify } from '../utils/notifications';
 import { 
   Task, 
@@ -9,7 +9,8 @@ import {
   TaskCategory,
   TaskPriorityValues,
   TaskCategoryValues,
-  TaskStatus
+  TaskStatus,
+  TodoListAccount
 } from '../models/types/task';
 import { Program } from '@project-serum/anchor';
 
@@ -113,22 +114,28 @@ export const useTaskProgram = () => {
       const program = getProgram();
       const [todoListPDA] = await getTodoListPDA(wallet.publicKey);
       
-      const account = await program.account.userTodoList.fetch(todoListPDA);
-      
-      // Transform the account data to match our Task interface
-      return account.tasks.map((task: any): Task => ({
-        id: task.id.toNumber(),
-        title: task.title,
-        description: task.description,
-        creator: task.creator,
-        assignee: task.assignee,
-        priority: task.priority,
-        status: task.status,
-        category: task.category,
-        createdAt: task.createdAt.toNumber(),
-        updatedAt: task.updatedAt.toNumber(),
-        completedAt: task.completedAt ? task.completedAt.toNumber() : null
-      }));
+      try {
+        const account = await program.account.userTodoList.fetch(todoListPDA) as TodoListAccount;
+        
+        return account.tasks.map((task: Task): Task => ({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          creator: task.creator,
+          assignee: task.assignee,
+          priority: task.priority,
+          status: task.status,
+          category: task.category,
+          createdAt: task.createdAt,
+          updatedAt: task.updatedAt,
+          completedAt: task.completedAt ? task.completedAt : null
+        }));
+      } catch (err) {
+        if ((err as Error).message?.includes('Account does not exist')) {
+          return [];
+        }
+        throw err;
+      }
     } catch (error: any) {
       console.error('Error fetching tasks:', error);
       notify({ 
@@ -138,7 +145,7 @@ export const useTaskProgram = () => {
       });
       return [];
     }
-  };
+};
 
   const updateTaskStatus = async (
     taskId: number,

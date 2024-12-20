@@ -3,7 +3,7 @@ use crate::errors::TodoError;
 use crate::state::{Task, TaskPriority, TaskStatus, TaskCategory, UserTodoList, TaskNotification, NotificationAccount};
 
 #[derive(Accounts)]
-#[instruction(bump: u8)]
+#[instruction(bump:u8)]
 pub struct CreateTask<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -24,7 +24,8 @@ pub struct CreateTask<'info> {
         seeds = [b"user-notifications", assignee.key().as_ref()],
         bump,
         payer = user,
-        space = 8 + std::mem::size_of::<NotificationAccount>() + 1024
+        space = 8 + std::mem::size_of::<NotificationAccount>() + 1024,
+        constraint = assignee.key() != user.key() // only init this account if there's an assignee
     )]
     pub notification_account: Account<'info, NotificationAccount>,
 
@@ -82,7 +83,7 @@ pub struct SetReminder<'info> {
     #[account(
         mut,
         seeds = [b"user-todo-list", user.key().as_ref()],
-        bump = todo_list.bump,
+        bump,
     )]
     pub todo_list: Account<'info, UserTodoList>,
 
@@ -90,14 +91,14 @@ pub struct SetReminder<'info> {
         init_if_needed,
         seeds = [b"user-notifications", user.key().as_ref()],
         bump,
-        space = 8 + std::mem::size_of::<NotificationAccount>() + 1024,
-        payer = user
+        payer = user,
+        space = 8 + std::mem::size_of::<NotificationAccount>() + 1024
     )]
-
     pub notification_account: Account<'info, NotificationAccount>,
 
     pub system_program: Program<'info, System>,
 }
+
 
 pub fn create_task(
     ctx: Context<CreateTask>, 

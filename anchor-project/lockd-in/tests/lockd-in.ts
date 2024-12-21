@@ -102,7 +102,7 @@ describe("lockd-in", () => {
             "Description",
             { casual: {} },
             { work: {} },
-            null
+            assignee.publicKey
           )
           .accounts({
             user: user.publicKey,
@@ -115,8 +115,7 @@ describe("lockd-in", () => {
           .rpc();
         expect.fail("Expected to fail with invalid title");
       } catch (error: any) {
-        const errorMsg = error.error?.message || error.message;
-        expect(errorMsg).to.include("Invalid task title or description");
+        expect(error.toString()).to.include("Invalid task title or description");
       }
     });
   });
@@ -247,7 +246,7 @@ describe("lockd-in", () => {
           "Description",
           { casual: {} },
           { work: {} },
-          null
+          assignee.publicKey
         )
         .accounts({
           user: user.publicKey,

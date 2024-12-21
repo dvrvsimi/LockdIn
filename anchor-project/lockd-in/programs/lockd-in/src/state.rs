@@ -135,6 +135,12 @@ pub struct NotificationAccount {
 }
 
 
-impl NotificationAccount {
-    pub const SEED: &'static str = "user-notifications";
+impl Default for NotificationAccount {
+    fn default() -> Self {
+        Self {
+            owner: Pubkey::default(),
+            notifications: Vec::new(),
+            bump: 0,
+        }
+    }
 }

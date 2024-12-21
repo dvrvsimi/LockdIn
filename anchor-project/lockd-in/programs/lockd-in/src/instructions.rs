@@ -25,7 +25,7 @@ pub struct CreateTask<'info> {
         bump,
         payer = user,
         space = 8 + std::mem::size_of::<NotificationAccount>() + 1024,
-        constraint = assignee.key() != user.key() // only init this account if there's an assignee
+        // constraint = assignee.key() != user.key() // only init this account if there's an assignee
     )]
     pub notification_account: Account<'info, NotificationAccount>,
 
@@ -108,6 +108,24 @@ pub fn create_task(
     category: TaskCategory,
     assignee: Option<Pubkey>
 ) -> Result<()> {
+
+    // check for self-assignment
+    if let Some(assignee_key) = assignee {
+        require!(
+            assignee_key != ctx.accounts.user.key(),
+            TodoError::UnauthorizedModification
+        );
+    }
+
+
+    // Initialize notification account if it's new
+    if ctx.accounts.notification_account.owner == Pubkey::default() {
+        ctx.accounts.notification_account.owner = ctx.accounts.assignee.key();
+        ctx.accounts.notification_account.notifications = Vec::new();
+        ctx.accounts.notification_account.bump = ctx.bumps.notification_account;
+    }
+
+
     require!(title.len() <= Task::MAX_TITLE_LENGTH, TodoError::InvalidTitle);
     require!(description.len() <= Task::MAX_DESCRIPTION_LENGTH, TodoError::InvalidTitle);
     require!(ctx.accounts.todo_list.tasks.len() < Task::MAX_TASKS, TodoError::MaxTasksLimitReached);

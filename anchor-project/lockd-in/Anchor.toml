@@ -4,14 +4,14 @@
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-lockd_in = "DdJpnMdvznViXZs17HZyBw9sU9MsVCwmrfMZCAeEWwQL"
+[programs.devnet]
+lockd_in = "2KD5XEGEmkWqnhqvAijv2cxjJ4b8m3bXYQg3NPVLTP6h"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
@@ -19,3 +19,5 @@ test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts --show-log
 
 [test]
 startup_wait = 50000
+# shutdown_wait = 2000
+# upgradeable = false

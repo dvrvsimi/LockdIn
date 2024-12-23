@@ -1,6 +1,7 @@
 # LockdIn
 
 LockdIn is a decentralized todo list application built on the Solana blockchain. It allows users to create, manage, and track tasks with features like task assignment, priority levels, and completion streaks.
+![LockdIn home page](./public/home.png)
 
 ## Features
 
@@ -11,6 +12,9 @@ LockdIn is a decentralized todo list application built on the Solana blockchain.
 - Track task status (Pending, InProgress, Completed, Cancelled)
 - Maintain completion streaks for consistent task completion
 - Task limits and validation to ensure data integrity
+
+![Tasks page](./public/tasks.png)
+
 
 ## Smart Contract Structure
 

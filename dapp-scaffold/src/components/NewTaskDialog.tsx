@@ -57,7 +57,7 @@ export const NewTaskDialog: FC<NewTaskDialogProps> = ({ isOpen, onClose, onTaskC
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-white sm:max-w-[600px] p-8">
+      <DialogContent className="bg-white sm:max-w-[600px] overflow-y-auto p-8">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold text-gray-900 mb-6">Create New Task</DialogTitle>
         </DialogHeader>
@@ -122,9 +122,10 @@ export const NewTaskDialog: FC<NewTaskDialogProps> = ({ isOpen, onClose, onTaskC
               id="assignee"
               value={assignee}
               onChange={(e) => setAssignee(e.target.value)}
-              placeholder="Enter Solana address"
+              placeholder="Enter SOL address"
               className="text-gray-900 placeholder:text-gray-400 text-lg p-3"
             />
+            <p className="text-sm text-gray-500">Want to add someone else to this task? Add their SOL address here</p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-6">

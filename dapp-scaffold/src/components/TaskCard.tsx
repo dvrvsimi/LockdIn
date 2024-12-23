@@ -1,7 +1,7 @@
 import { FC } from 'react';
 import { Clock, CheckCircle, XCircle, AlertCircle, User } from 'lucide-react';
 import { Card } from './ui/cards';
-import { Task } from '../models/types/task';
+import { Task, ProgramTaskStatus, ProgramTaskPriority, ProgramTaskCategory } from '../models/types/task';
 
 interface TaskCardProps {
   task: Task;
@@ -14,38 +14,42 @@ export const TaskCard: FC<TaskCardProps> = ({
   onEdit,
   onDelete,
 }) => {
-  const getStatusIcon = (status: any) => {
-    if (status.completed) return <CheckCircle className="w-5 h-5 text-green-500" />;
-    if (status.inProgress) return <Clock className="w-5 h-5 text-blue-500" />;
-    if (status.cancelled) return <XCircle className="w-5 h-5 text-red-500" />;
+  const getStatusIcon = (status: ProgramTaskStatus) => {
+    if ('completed' in status) return <CheckCircle className="w-5 h-5 text-green-500" />;
+    if ('inProgress' in status) return <Clock className="w-5 h-5 text-blue-500" />;
+    if ('cancelled' in status) return <XCircle className="w-5 h-5 text-red-500" />;
     return <AlertCircle className="w-5 h-5 text-yellow-500" />;
   };
 
-  const getStatusText = (status: any) => {
-    if (status.completed) return 'Completed';
-    if (status.inProgress) return 'In Progress';
-    if (status.cancelled) return 'Cancelled';
+  const getStatusText = (status: ProgramTaskStatus) => {
+    if ('completed' in status) return 'Completed';
+    if ('inProgress' in status) return 'In Progress';
+    if ('cancelled' in status) return 'Cancelled';
     return 'Pending';
   };
 
-  const getPriorityColor = (priority: any) => {
-    if (priority.urgent) return 'text-red-500 bg-red-500/10';
-    if (priority.casual) return 'text-blue-500 bg-blue-500/10';
+  const getPriorityColor = (priority: ProgramTaskPriority) => {
+    if ('urgent' in priority) return 'text-red-500 bg-red-500/10';
+    if ('casual' in priority) return 'text-blue-500 bg-blue-500/10';
     return 'text-gray-500 bg-gray-500/10';
   };
 
-  const getPriorityText = (priority: any) => {
-    if (priority.urgent) return 'Urgent';
-    if (priority.casual) return 'Casual';
+  const getPriorityText = (priority: ProgramTaskPriority) => {
+    if ('urgent' in priority) return 'Urgent';
+    if ('casual' in priority) return 'Casual';
     return 'Leisure';
   };
 
-  const getCategoryText = (category: any) => {
-    if (category.work) return 'Work';
-    if (category.personal) return 'Personal';
-    if (category.home) return 'Home';
-    if (category.shopping) return 'Shopping';
+  const getCategoryText = (category: ProgramTaskCategory) => {
+    if ('work' in category) return 'Work';
+    if ('personal' in category) return 'Personal';
+    if ('home' in category) return 'Home';
+    if ('shopping' in category) return 'Shopping';
     return 'Other';
+  };
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   return (
@@ -67,13 +71,13 @@ export const TaskCard: FC<TaskCardProps> = ({
             {task.assignee && (
               <div className="flex items-center text-gray-400 text-sm">
                 <User className="w-4 h-4 mr-1" />
-                {task.assignee.toString().slice(0, 6)}...{task.assignee.toString().slice(-4)}
+                {formatAddress(task.assignee.toString())}
               </div>
             )}
           </div>
         </div>
         <div className="flex space-x-2">
-          {onEdit && (
+          {onEdit && !('completed' in task.status) && (
             <button 
               onClick={() => onEdit(task.id)}
               className="text-gray-400 hover:text-white transition-colors"

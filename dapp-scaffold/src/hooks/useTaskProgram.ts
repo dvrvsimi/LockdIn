@@ -1,8 +1,9 @@
+import { useCallback } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import * as anchor from '@project-serum/anchor';
-import { Program } from '@project-serum/anchor';
-import { IDL } from '../utils/lockd_in';
+import { Program, Idl } from '@project-serum/anchor';
+import IDL from '../utils/lockd_in.json';
 import { notify } from '../utils/notifications';
 import { 
   Task,
@@ -17,10 +18,7 @@ import {
   convertToProgramCategory
 } from '../models/types/task';
 
-// Define the program type using the IDL
-type LockdInProgram = Program<typeof IDL>;
-
-const PROGRAM_ID = new PublicKey('6rmb4Kmxibx3DVj9TDZ8tq5JrQhRGhEnyEtVrb7b8UUn');
+const programID = new PublicKey(IDL.address);
 
 class TaskError extends Error {
   constructor(message: string, public code?: string) {
@@ -40,7 +38,7 @@ export const useTaskProgram = () => {
     return wallet.publicKey;
   };
 
-  const getProgram = (): LockdInProgram => {
+  const getProgram = () => {
     validateWallet();
     const provider = new anchor.AnchorProvider(
       connection, 
@@ -51,21 +49,22 @@ export const useTaskProgram = () => {
       },
       { commitment: 'processed' }
     );
+    anchor.setProvider(provider);
 
-    return new anchor.Program(IDL, PROGRAM_ID, provider);
+    return new Program((IDL as unknown) as anchor.Idl, programID, provider); // still not sure if this is the right way to cast
   };
 
   const getTodoListPDA = async (owner: PublicKey): Promise<[PublicKey, number]> => {
     return await PublicKey.findProgramAddress(
       [Buffer.from('user-todo-list'), owner.toBuffer()],
-      PROGRAM_ID
+      programID
     );
   };
 
   const getNotificationPDA = async (owner: PublicKey): Promise<[PublicKey, number]> => {
     return await PublicKey.findProgramAddress(
       [Buffer.from('user-notifications'), owner.toBuffer()],
-      PROGRAM_ID
+      programID
     );
   };
 
@@ -153,7 +152,7 @@ export const useTaskProgram = () => {
     }
   };
 
-  const fetchTasks = async (): Promise<Task[]> => {
+  const fetchTasks = useCallback(async (): Promise<Task[]> => {
     try {
       const userPubkey = validateWallet();
       const program = getProgram();
@@ -177,7 +176,7 @@ export const useTaskProgram = () => {
       });
       return [];
     }
-  };
+}, [wallet.publicKey, connection]); // Only depend on the stable values we need
 
   const updateTaskStatus = async (
     taskId: number,
@@ -311,11 +310,50 @@ export const useTaskProgram = () => {
     }
   };
 
+  const deleteTask = async (taskId: number): Promise<string> => {
+    try {
+      const userPubkey = validateWallet();
+      const program = getProgram();
+      const [todoListPDA] = await getTodoListPDA(userPubkey);
+
+      // Since there's no delete instruction, we'll mark it as cancelled
+      const tx = await program.methods
+        .updateTaskStatus(
+          new anchor.BN(taskId),
+          { cancelled: {} }
+        )
+        .accounts({
+          user: userPubkey,
+          todoList: todoListPDA,
+        })
+        .rpc();
+
+      await connection.confirmTransaction(tx);
+
+      notify({
+        type: 'success',
+        message: 'Task deleted successfully!',
+        txid: tx
+      });
+
+      return tx;
+    } catch (error: any) {
+      console.error('Error deleting task:', error);
+      notify({
+        type: 'error',
+        message: 'Failed to delete task',
+        description: error?.message
+      });
+      throw error;
+    }
+  };
+
   return {
     createTask,
     fetchTasks,
     updateTaskStatus,
     assignTask,
     setTaskReminder,
+    deleteTask,
   };
 };

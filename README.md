@@ -87,9 +87,4 @@ anchor test
 - Task limit enforcement
 
 ## Contributing
-
-Feel free to submit issues and pull requests for:
-- New features
-- Bug fixes
-- Documentation improvements
-- Test coverage improvements
+I am very open to suggestions
